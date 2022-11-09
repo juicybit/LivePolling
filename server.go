@@ -12,7 +12,7 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL.Path)
 	p := "." + r.URL.Path
 	if p == "./" {
-		p = "../client/client.html"
+		p = "client/client.html"
 	}
 	http.ServeFile(w, r, p)
 }
@@ -70,5 +70,5 @@ func main() {
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
-  log.Println("Listening on Port 8080")
+  log.Println("Done listening on Port 8080")
 }
