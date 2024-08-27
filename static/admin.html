@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<meta charset=utf-8 />
+    <link rel="stylesheet" href="/static/style.css">
+<title>Poll Admin</title>
+
+</head>
+<body id="admin">
+  <div class="wrapper">
+      <header class="header"><h1>Websocket Admin</h1></header>
+    <article class="main">
+      <div id="statistics"></div>
+    </article>
+    <aside class="aside aside-1">
+        <form id="questioninput">
+        <div>
+            <textarea id="question"
+            onfocus="if(this.value.substr(0, 'Enter'.length) === 'Enter' )this.value=''"
+            >Testquestion?</textarea>
+            <p>
+            <input type="text" name="p1" id="p1" class="possibility" value="a"/>
+            <label for="p1">M&ouml;glichkeit 1</label>
+            </p>
+            <p>
+            <input type="text" name="p2" id="p2" class="possibility" value="b"/>
+            <label for="p2">M&ouml;glichkeit 2</label>
+            </p>
+            <p>
+            <input type="text" name="p3" id="p3" class="possibility" value="c"/>
+            <label for="p3">M&ouml;glichkeit 3</label>
+            </p>
+            <button id="sendQuestions">Ask</button>
+            <button id="clear">Clear</button>
+            <button id="disconnect">Disconnect</button>
+        </div><!-- end questioninput-->
+        </form>
+    <button onclick="send();">Send Message</button>
+    </aside>
+      <aside class="aside aside-2" ><div id="chatlog"></div></aside>
+    <footer class="footer">
+      <div id="adminlogin">
+      <input type="text" id="adminname" value="admin" onfocus="if(this.value.substr(0, 'name'.length) === 'name' )this.value=''"/>
+      <input type="password" id="adminpass" value="admin" onfocus="if(this.value.substr(0, 'password'.length) === 'password' )this.value=''"/>
+      <button id="login" >Login</button>
+      </div><!-- end adminlogin -->
+      <div id="mask"></div>
+    </footer>
+  </div>
+<script type="text/javascript">
+
+    if(!("WebSocket" in window)){
+      window.alert('Oh no, you need a browser that supports WebSockets. ');
+    } else {
+      //The user has WebSockets
+      let sock = null;
+      const wsuri = "ws://localhost:8080/ws";
+
+      window.onload = function() {
+        sock = new WebSocket(wsuri);
+
+        sock.onopen = function() {
+          console.log(`connected to ${wsuri}`);
+          log_message("event",`connected to ${wsuri}`);
+          log_message("event",`Connection to socket server "${wsuri}" established. readyState: ${sock.readyState}`);
+          sock.send(JSON.stringify({type:"init", body:"admin"}));
+          const sendButton = document.getElementById("sendQuestions");
+          sendButton.onclick = function() {
+            const q = document.getElementById("question").value;
+            const p1 = document.getElementById("p1").value;
+            const p2 = document.getElementById("p2").value;
+            const p3 = document.getElementById("p3").value;
+            const questionnaire = {
+              question:q,
+              possibilities: [
+                p1,
+                p2,
+                p3
+              ]
+            }
+            const message = {type: "question", body: JSON.stringify(questionnaire)}
+            log_message(`sending questionnaire: ${questionnaire}`)
+            sock.send(JSON.stringify(message));
+          }
+        }
+
+        sock.onclose = function(e) {
+          console.log(`connection closed (" ${e.code} ")`);
+          log_message("event",`connection closed (" ${e.code} ")`);
+        }
+
+        sock.onmessage = function(e) {
+          console.log(`message received: ${e.data}`, e);
+          log_message("event",`message received: ${e.data}`);
+        }
+
+        sock.onerror = function(e) {
+          console.error("Socket error: ", e)
+          log_message("error",`Socket error: ${e}`)
+        }
+      };
+
+      function wsClose() {
+        log_message("event","Connection to socket server lost. readyState: "+sock.readyState);
+      }
+      function handleLogin(e) {
+
+        var logedin = (typeof e.data != 'undefined' ) ? e.data : false;
+
+        var loginpanel = $('#adminlogin');
+        var mask = $('#mask');
+
+        if(logedin !== true)
+      {
+          var winH = $(window).height();
+          var winW = $(window).width();
+
+          mask.css({'width':winW,'height':winH,'opacity':0.8});
+
+          loginpanel.css('top',  winH/2-$(loginpanel).height()/2);
+          loginpanel.css('left', winW/2-$(loginpanel).width()/2);
+
+          mask.show();
+          loginpanel.show();
+          $('#adminname').focus();
+          $('#adminname,#adminpass').keypress(function(event) {
+            if (event.keyCode == '13') {
+              send_login();
+            }
+          });
+
+          $('#login').click(function(){
+            send_login();
+          });
+
+
+        }
+        else if(logedin === true)
+      {
+          mask.hide();
+          loginpanel.hide();
+          mask.click(function(){
+            $(this).hide();
+            loginpanel.hide();
+          });
+
+        }
+      }
+      function handleStats(e) {
+
+        if($('#statistics ul#'+e.id).length == 0)
+      {
+          $('#statistics').prepend('<strong>'+e.text+'</strong><ul id="'+e.id+'"></ul>');
+          $.each(e.choices, function(index,value){
+            $('#statistics #'+e.id).append('<li>'+value+': '+e.votes[index]+'</li>');
+          });
+
+        }else{
+          $('#statistics #'+e.id).html('');
+          $.each(e.choices, function(index,value){
+            $('#statistics #'+e.id).append('<li>'+value+': '+e.votes[index]+'</li>');
+          });
+        }
+      }
+
+
+        function log_message(type, msg) {
+          let chatlog = document.getElementById('chatlog');
+        chatlog.insertAdjacentHTML('beforeend',`<p class="${type}">${msg}</p>`);
+        }
+
+      function send_login()
+      {
+        var name=$('#adminname').val();
+        var pass=$('#adminpass').val();
+
+        socket.send("login",{adminname:name,adminpass:pass});
+      }
+      }// end: the user has websockets
+
+</script>
+</body>
+</html>​
